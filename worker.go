@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gzjjyz/logger"
@@ -29,6 +30,7 @@ type Worker struct {
 	router    *Router
 	chSize    int
 	loopFunc  func()
+	stopped   atomic.Bool
 	ch        chan *msg
 	wg        sync.WaitGroup
 }
@@ -63,6 +65,17 @@ func (w *Worker) init() error {
 	return nil
 }
 
+func (w *Worker) SendMsg(id MsgIdType, args ...interface{}) {
+	if w.stopped.Load() {
+		return
+	}
+	w.ch <- &msg{
+		id:      id,
+		args:    args,
+		traceId: "",
+	}
+}
+
 func (w *Worker) GoStart() error {
 	if nil == w.router {
 		return errors.New(fmt.Sprintf("worker %s start without any router", w.name))
@@ -83,6 +96,8 @@ func (w *Worker) GoStart() error {
 		defer func() {
 			w.wg.Done()
 			defer doLoopFuncTk.Stop()
+
+			logger.Info("worker %s had exit", w.name)
 		}()
 
 		for {
@@ -91,9 +106,13 @@ func (w *Worker) GoStart() error {
 				if !ok {
 					return
 				}
-				w.loop([]*msg{rec})
+				if w.loop([]*msg{rec}) {
+					return
+				}
 			case <-doLoopFuncTk.C:
-				w.loop(nil)
+				if w.loop(nil) {
+					return
+				}
 			}
 		}
 	},
@@ -103,6 +122,7 @@ func (w *Worker) GoStart() error {
 }
 
 func (w *Worker) Close() error {
+	w.stopped.Store(true)
 	close(w.ch)
 	w.wg.Wait()
 	return nil
