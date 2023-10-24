@@ -25,3 +25,9 @@ func WithLoopFunc(loop func()) Option {
 		worker.loopFunc = loop
 	}
 }
+
+func WithBeforeLoop(cb func()) Option {
+	return func(worker *Worker) {
+		worker.beforeLoop = cb
+	}
+}

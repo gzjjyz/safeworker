@@ -25,14 +25,15 @@ type msg struct {
 }
 
 type Worker struct {
-	name      string
-	fetchOnce int
-	router    *Router
-	chSize    int
-	loopFunc  func()
-	stopped   atomic.Bool
-	ch        chan *msg
-	wg        sync.WaitGroup
+	name       string
+	fetchOnce  int
+	router     *Router
+	chSize     int
+	loopFunc   func()
+	beforeLoop func()
+	stopped    atomic.Bool
+	ch         chan *msg
+	wg         sync.WaitGroup
 }
 
 func NewWorker(opts ...Option) (*Worker, error) {
@@ -99,6 +100,10 @@ func (w *Worker) GoStart() error {
 
 			logger.Info("worker %s had exit", w.name)
 		}()
+
+		if nil != w.beforeLoop {
+			w.beforeLoop()
+		}
 
 		for {
 			select {
