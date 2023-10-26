@@ -63,6 +63,7 @@ func (w *Worker) init() error {
 	w.ch = make(chan *msg, w.chSize)
 	w.fetchOnce = w.chSize / 10
 
+	logger.Info("worker %s init success", w.name)
 	return nil
 }
 
@@ -90,6 +91,8 @@ func (w *Worker) GoStart() error {
 		return err
 	}
 	w.wg.Add(1)
+
+	logger.Info("worker %s GoStart", w.name)
 
 	utils.ProtectGo(func() {
 		doLoopFuncTk := time.NewTicker(loopEventProcInterval)
@@ -130,6 +133,8 @@ func (w *Worker) Close() error {
 	w.stopped.Store(true)
 	close(w.ch)
 	w.wg.Wait()
+
+	logger.Info("worker %s close done", w.name)
 	return nil
 }
 
