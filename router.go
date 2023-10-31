@@ -1,6 +1,7 @@
 package safeworker
 
 import (
+	"sync"
 	"time"
 
 	"github.com/gzjjyz/logger"
@@ -17,6 +18,7 @@ type MsgHdlType func(param ...interface{})
 type Router struct {
 	m        map[MsgIdType]MsgHdlType
 	slowTime time.Duration
+	mu       sync.RWMutex
 }
 
 func NewRouter(slow time.Duration) *Router {
@@ -34,6 +36,8 @@ func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
 		logger.Fatalf("worker router callback is nil, id=%v", id)
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	_, repeat := r.m[id]
 	if repeat {
 		logger.Fatalf("worker router register repeated. id=%d", id)
@@ -46,7 +50,10 @@ func (r *Router) Process(list []*msg) {
 	gid := goid.Get()
 	for _, line := range list {
 		t := time.Now()
-		if fn, ok := r.m[line.id]; ok {
+		r.mu.RLock()
+		fn, ok := r.m[line.id]
+		r.mu.RUnlock()
+		if ok {
 			trace.Ctx.SetCurGTrace(gid, line.traceId)
 			utils.ProtectRun(func() {
 				fn(line.args[:]...)
