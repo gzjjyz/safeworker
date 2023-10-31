@@ -57,7 +57,7 @@ func (w *Worker) init() error {
 
 	if 0 >= w.chSize {
 		w.chSize = defCapacity
-		logger.Warn("worker %s never set ch size. change to defCapacity %d", defCapacity)
+		logger.Warn("worker %s never set ch size. change to defCapacity %d", w.name, defCapacity)
 	}
 
 	w.ch = make(chan *msg, w.chSize)
