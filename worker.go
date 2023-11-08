@@ -85,7 +85,7 @@ func (w *Worker) getTraceId() string {
 		// 避免太长
 		// 避免一个 traceId 贯穿两三个 worker;采用拼接,可以方便的筛选出想看的业务逻辑日志
 		split := strings.Split(traceId, ".")
-		if len(split) > 2 {
+		if len(split) >= 2 {
 			traceId = split[0]
 		}
 		traceId = fmt.Sprintf("%s.%s", traceId, genUUID())
