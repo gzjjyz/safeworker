@@ -71,10 +71,16 @@ func (w *Worker) init() error {
 	return nil
 }
 
+func genUUID() string {
+	u2 := uuid.NewV4()
+	str := strings.ReplaceAll(u2.String(), "-", "")
+	return str[:16]
+}
+
 func (w *Worker) getTraceId() string {
 	traceId, _ := trace.Ctx.GetCurGTrace(goid.Get())
 	if traceId == "" {
-		traceId = uuid.NewV4().String()
+		traceId = genUUID()
 	} else {
 		// 避免太长
 		// 避免一个 traceId 贯穿两三个 worker;采用拼接,可以方便的筛选出想看的业务逻辑日志
@@ -82,7 +88,7 @@ func (w *Worker) getTraceId() string {
 		if len(split) > 2 {
 			traceId = split[0]
 		}
-		traceId = fmt.Sprintf("%s.%s", traceId, uuid.NewV4().String())
+		traceId = fmt.Sprintf("%s.%s", traceId, genUUID())
 	}
 	return traceId
 }
