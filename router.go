@@ -1,6 +1,7 @@
 package safeworker
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -54,6 +55,9 @@ func (r *Router) Process(list []*msg) {
 		fn, ok := r.m[line.id]
 		r.mu.RUnlock()
 		if ok {
+			if line.traceId == "" {
+				line.traceId = utils.GetMd5(fmt.Sprintf("%d", time.Now().UnixNano()))
+			}
 			trace.Ctx.SetCurGTrace(gid, line.traceId)
 			utils.ProtectRun(func() {
 				fn(line.args[:]...)
