@@ -3,6 +3,10 @@ package safeworker
 import (
 	"errors"
 	"fmt"
+	"github.com/gzjjyz/trace"
+	"github.com/petermattis/goid"
+	uuid "github.com/satori/go.uuid"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -67,6 +71,22 @@ func (w *Worker) init() error {
 	return nil
 }
 
+func (w *Worker) getTraceId() string {
+	traceId, _ := trace.Ctx.GetCurGTrace(goid.Get())
+	if traceId == "" {
+		traceId = uuid.NewV4().String()
+	} else {
+		// 避免太长
+		// 避免一个 traceId 贯穿两三个 worker;采用拼接,可以方便的筛选出想看的业务逻辑日志
+		split := strings.Split(traceId, ".")
+		if len(split) > 2 {
+			traceId = split[0]
+		}
+		traceId = fmt.Sprintf("%s.%s", traceId, uuid.NewV4().String())
+	}
+	return traceId
+}
+
 func (w *Worker) SendMsg(id MsgIdType, args ...interface{}) {
 	if w.stopped.Load() {
 		return
@@ -74,7 +94,7 @@ func (w *Worker) SendMsg(id MsgIdType, args ...interface{}) {
 	w.ch <- &msg{
 		id:      id,
 		args:    args,
-		traceId: "",
+		traceId: w.getTraceId(),
 	}
 }
 
