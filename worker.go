@@ -3,13 +3,14 @@ package safeworker
 import (
 	"errors"
 	"fmt"
-	"github.com/gzjjyz/trace"
-	"github.com/petermattis/goid"
-	uuid "github.com/satori/go.uuid"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gzjjyz/trace"
+	"github.com/petermattis/goid"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/gzjjyz/logger"
 	"github.com/gzjjyz/srvlib/utils"
@@ -61,13 +62,13 @@ func (w *Worker) init() error {
 
 	if 0 >= w.chSize {
 		w.chSize = defCapacity
-		logger.Warn("worker %s never set ch size. change to defCapacity %d", w.name, defCapacity)
+		logger.LogWarn("worker %s never set ch size. change to defCapacity %d", w.name, defCapacity)
 	}
 
 	w.ch = make(chan *msg, w.chSize)
 	w.fetchOnce = w.chSize / 10
 
-	logger.Info("worker %s init success", w.name)
+	logger.LogInfo("worker %s init success", w.name)
 	return nil
 }
 
@@ -110,15 +111,15 @@ func (w *Worker) GoStart() error {
 	}
 
 	err := getMonitor().register(w.name, func() {
-		logger.Errorf("worker: %s may offline", w.name)
+		logger.LogError("worker: %s may offline", w.name)
 	})
 	if nil != err {
-		logger.Errorf("register worker %s to monitor failed error: %v", w.name, err)
+		logger.LogError("register worker %s to monitor failed error: %v", w.name, err)
 		return err
 	}
 	w.wg.Add(1)
 
-	logger.Info("worker %s GoStart", w.name)
+	logger.LogInfo("worker %s GoStart", w.name)
 
 	utils.ProtectGo(func() {
 		doLoopFuncTk := time.NewTicker(loopEventProcInterval)
@@ -127,7 +128,7 @@ func (w *Worker) GoStart() error {
 			w.wg.Done()
 			defer doLoopFuncTk.Stop()
 
-			logger.Info("worker %s had exit", w.name)
+			logger.LogInfo("worker %s had exit", w.name)
 		}()
 
 		if nil != w.beforeLoop {
@@ -160,7 +161,7 @@ func (w *Worker) Close() error {
 	close(w.ch)
 	w.wg.Wait()
 
-	logger.Info("worker %s close done", w.name)
+	logger.LogInfo("worker %s close done", w.name)
 	return nil
 }
 

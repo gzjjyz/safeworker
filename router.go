@@ -33,14 +33,14 @@ func NewRouter(slow time.Duration) *Router {
 
 func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
 	if nil == cb {
-		logger.Fatalf("worker router callback is nil, id=%v", id)
+		logger.LogFatal("worker router callback is nil, id=%v", id)
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	_, repeat := r.m[id]
 	if repeat {
-		logger.Fatalf("worker router register repeated. id=%d", id)
+		logger.LogFatal("worker router register repeated. id=%d", id)
 		return
 	}
 	r.m[id] = cb
@@ -60,7 +60,7 @@ func (r *Router) Process(list []*msg) {
 			})
 		}
 		if since := time.Since(t); since > r.slowTime {
-			logger.Debug("process msg end! id:%v, cost:%v", line.id, since)
+			logger.LogDebug("process msg end! id:%v, cost:%v", line.id, since)
 		}
 	}
 }
