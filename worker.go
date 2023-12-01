@@ -37,6 +37,7 @@ type Worker struct {
 	loopFunc   func()
 	beforeLoop func()
 	stopped    atomic.Bool
+	afterLoop  func()
 	ch         chan *msg
 	wg         sync.WaitGroup
 }
@@ -135,20 +136,25 @@ func (w *Worker) GoStart() error {
 			w.beforeLoop()
 		}
 
+	EndLoop:
 		for {
 			select {
 			case rec, ok := <-w.ch:
 				if !ok {
-					return
+					break EndLoop
 				}
 				if w.loop([]*msg{rec}) {
-					return
+					break EndLoop
 				}
 			case <-doLoopFuncTk.C:
 				if w.loop(nil) {
-					return
+					break EndLoop
 				}
 			}
+		}
+
+		if nil != w.afterLoop {
+			w.afterLoop()
 		}
 	},
 	)

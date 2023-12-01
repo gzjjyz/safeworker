@@ -31,3 +31,9 @@ func WithBeforeLoop(cb func()) Option {
 		worker.beforeLoop = cb
 	}
 }
+
+func WithAfterLoop(cb func()) Option {
+	return func(worker *Worker) {
+		worker.afterLoop = cb
+	}
+}
