@@ -1,6 +1,7 @@
 package safeworker
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ type Router struct {
 	m        map[MsgIdType]MsgHdlType
 	slowTime time.Duration
 	mu       sync.RWMutex
+	curMsg   *msg
 }
 
 func NewRouter(slow time.Duration) *Router {
@@ -29,6 +31,13 @@ func NewRouter(slow time.Duration) *Router {
 		m:        make(map[MsgIdType]MsgHdlType),
 		slowTime: slow,
 	}
+}
+
+func (r *Router) curMsgInfo() string {
+	if r.curMsg == nil {
+		return ""
+	}
+	return fmt.Sprintf("curMsg:%v.", r.curMsg)
 }
 
 func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
@@ -54,10 +63,12 @@ func (r *Router) Process(list []*msg) {
 		fn, ok := r.m[line.id]
 		r.mu.RUnlock()
 		if ok {
+			r.curMsg = line
 			trace.Ctx.SetCurGTrace(gid, line.traceId)
 			utils.ProtectRun(func() {
 				fn(line.args[:]...)
 			})
+			r.curMsg = nil
 		}
 		if since := time.Since(t); since > r.slowTime {
 			logger.LogDebug("process msg end! id:%v, cost:%v", line.id, since)
