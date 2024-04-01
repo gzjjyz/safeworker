@@ -20,7 +20,7 @@ type Router struct {
 	m        map[MsgIdType]MsgHdlType
 	slowTime time.Duration
 	mu       sync.RWMutex
-	curMsg   *msg
+	curMsg   msg
 }
 
 func NewRouter(slow time.Duration) *Router {
@@ -34,10 +34,7 @@ func NewRouter(slow time.Duration) *Router {
 }
 
 func (r *Router) curMsgInfo() string {
-	if r.curMsg == nil {
-		return ""
-	}
-	return fmt.Sprintf("curMsg:%v.", r.curMsg)
+	return fmt.Sprintf("msg:{id:%d, traceId:%s, args:%v}.", r.curMsg.id, r.curMsg.traceId, r.curMsg.args)
 }
 
 func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
@@ -55,6 +52,18 @@ func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
 	r.m[id] = cb
 }
 
+func (r *Router) setCurMsg(line *msg) {
+	if line == nil {
+		r.curMsg = msg{}
+		return
+	}
+	r.curMsg = msg{
+		id:      line.id,
+		args:    line.args,
+		traceId: line.traceId,
+	}
+}
+
 func (r *Router) Process(list []*msg) {
 	gid := goid.Get()
 	for _, line := range list {
@@ -63,12 +72,12 @@ func (r *Router) Process(list []*msg) {
 		fn, ok := r.m[line.id]
 		r.mu.RUnlock()
 		if ok {
-			r.curMsg = line
+			r.setCurMsg(line)
 			trace.Ctx.SetCurGTrace(gid, line.traceId)
 			utils.ProtectRun(func() {
 				fn(line.args[:]...)
 			})
-			r.curMsg = nil
+			r.setCurMsg(nil)
 		}
 		if since := time.Since(t); since > r.slowTime {
 			logger.LogDebug("process msg end! id:%v, cost:%v", line.id, since)
