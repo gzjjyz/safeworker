@@ -113,7 +113,7 @@ func (w *Worker) GoStart() error {
 
 	err := getMonitor().register(w.name, func() {
 		var errStr = fmt.Sprintf("worker: %s may offline.", w.name)
-		if w.router != nil && w.router.curMsgInfo() != "" {
+		if w.router != nil {
 			errStr = fmt.Sprintf("%s%s", errStr, w.router.curMsgInfo())
 		}
 		logger.LogError(errStr)

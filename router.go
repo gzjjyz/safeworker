@@ -20,7 +20,8 @@ type Router struct {
 	m        map[MsgIdType]MsgHdlType
 	slowTime time.Duration
 	mu       sync.RWMutex
-	curMsg   msg
+	mmu      sync.RWMutex
+	curMsg   *msg
 }
 
 func NewRouter(slow time.Duration) *Router {
@@ -34,6 +35,11 @@ func NewRouter(slow time.Duration) *Router {
 }
 
 func (r *Router) curMsgInfo() string {
+	if r.curMsg == nil {
+		return ""
+	}
+	r.mmu.RLock()
+	defer r.mmu.RUnlock()
 	return fmt.Sprintf("msg:{id:%d, traceId:%s, args:%v}.", r.curMsg.id, r.curMsg.traceId, r.curMsg.args)
 }
 
@@ -53,15 +59,9 @@ func (r *Router) Register(id MsgIdType, cb MsgHdlType) {
 }
 
 func (r *Router) setCurMsg(line *msg) {
-	if line == nil {
-		r.curMsg = msg{}
-		return
-	}
-	r.curMsg = msg{
-		id:      line.id,
-		args:    line.args,
-		traceId: line.traceId,
-	}
+	r.mmu.Lock()
+	defer r.mmu.Unlock()
+	r.curMsg = line
 }
 
 func (r *Router) Process(list []*msg) {
