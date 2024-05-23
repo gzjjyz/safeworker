@@ -36,10 +36,10 @@ func NewRouter(slow time.Duration) *Router {
 
 func (r *Router) curMsgInfo() string {
 	r.mmu.RLock()
+	defer r.mmu.RUnlock()
 	if r.curMsg == nil {
 		return ""
 	}
-	defer r.mmu.RUnlock()
 	return fmt.Sprintf("msg:{id:%d, traceId:%s, args:%v}.", r.curMsg.id, r.curMsg.traceId, r.curMsg.args)
 }
 
