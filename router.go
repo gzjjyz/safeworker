@@ -22,6 +22,7 @@ type Router struct {
 	mu       sync.RWMutex
 	mmu      sync.RWMutex
 	curMsg   *msg
+	name     string
 }
 
 func NewRouter(slow time.Duration) *Router {
@@ -40,7 +41,7 @@ func (r *Router) curMsgInfo() string {
 	if r.curMsg == nil {
 		return ""
 	}
-	return fmt.Sprintf("msg:{id:%d, traceId:%s, args:%v}.", r.curMsg.id, r.curMsg.traceId, r.curMsg.args)
+	return fmt.Sprintf("worker[%s] msg:{id:%d, traceId:%s, args:%v}.", r.name, r.curMsg.id, r.curMsg.traceId, r.curMsg.args)
 }
 
 func (r *Router) Register(id MsgIdType, cb MsgHdlType) {

@@ -57,6 +57,8 @@ func (w *Worker) init() error {
 		return errors.New(fmt.Sprintf("worker %s router is nil", w.name))
 	}
 
+	w.router.name = w.name
+
 	if nil == w.loopFunc {
 		return errors.New(fmt.Sprintf("worker %s loop func is nil", w.name))
 	}
