@@ -38,6 +38,7 @@ type Worker struct {
 	beforeLoop func()
 	stopped    atomic.Bool
 	afterLoop  func()
+	warnAlarm  func(errMsg string)
 	ch         chan *msg
 	wg         sync.WaitGroup
 }
@@ -108,18 +109,23 @@ func (w *Worker) SendMsg(id MsgIdType, args ...interface{}) {
 	}
 }
 
+func (w *Worker) monitorOnTimeOutCb() {
+	var errStr = fmt.Sprintf("worker: %s may offline.", w.name)
+	if w.router != nil {
+		errStr = fmt.Sprintf("%s%s", errStr, w.router.curMsgInfo())
+	}
+	if w.warnAlarm != nil {
+		w.warnAlarm(errStr)
+	}
+	logger.LogError(errStr)
+}
+
 func (w *Worker) GoStart() error {
 	if nil == w.router {
 		return errors.New(fmt.Sprintf("worker %s start without any router", w.name))
 	}
 
-	err := getMonitor().register(w.name, func() {
-		var errStr = fmt.Sprintf("worker: %s may offline.", w.name)
-		if w.router != nil {
-			errStr = fmt.Sprintf("%s%s", errStr, w.router.curMsgInfo())
-		}
-		logger.LogError(errStr)
-	})
+	err := getMonitor().register(w.name, w.monitorOnTimeOutCb)
 	if nil != err {
 		logger.LogError("register worker %s to monitor failed error: %v", w.name, err)
 		return err

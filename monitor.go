@@ -17,13 +17,17 @@ var (
 )
 
 type description struct {
-	counter   uint32
-	timeOutCb func()
+	counter      uint32
+	timeOutCb    func()
+	checker      *TimeChecker
+	startTimeOut atomic.Int64
 }
 
 type monitor struct {
-	workers sync.Map
-	exit    chan struct{}
+	workers      sync.Map
+	exit         chan struct{}
+	warnAlarm    func(msg string)
+	successAlarm func(msg string)
 }
 
 func getMonitor() *monitor {
@@ -35,6 +39,24 @@ func getMonitor() *monitor {
 	})
 
 	return singleton
+}
+
+func GetMonitor() *monitor {
+	return getMonitor()
+}
+
+func (m *monitor) RegGlobalTimeOutCb(f func(errMsg string)) {
+	if f == nil {
+		return
+	}
+	m.warnAlarm = f
+}
+
+func (m *monitor) RegGlobalSuccessCb(f func(msg string)) {
+	if f == nil {
+		return
+	}
+	m.successAlarm = f
 }
 
 func (m *monitor) stop() {
@@ -64,6 +86,12 @@ func (m *monitor) report(workerName string) {
 	}
 	if work, ok := w.(*description); ok {
 		atomic.StoreUint32(&work.counter, 0)
+		if start := work.startTimeOut.Load(); start != 0 {
+			if m.successAlarm != nil {
+				m.successAlarm(fmt.Sprintf("持续时间(秒)：%d", time.Now().Unix()-start))
+			}
+			work.startTimeOut.Store(0)
+		}
 	}
 }
 
@@ -76,13 +104,25 @@ func (m *monitor) run() {
 		case <-m.exit:
 			return
 		case <-ticker.C:
-			m.workers.Range(func(_, value interface{}) bool {
+			m.workers.Range(func(name, value interface{}) bool {
 				wd := value.(*description)
 				if atomic.AddUint32(&wd.counter, 1) > 5 {
+					if start := wd.startTimeOut.Load(); start == 0 {
+						wd.startTimeOut.Store(time.Now().Unix())
+					}
 					if wd.timeOutCb == nil {
 						return true
 					}
 					wd.timeOutCb()
+					if m.warnAlarm != nil {
+						if wd.checker != nil && !wd.checker.CheckAndSet(true) {
+							return true
+						}
+						if wd.checker == nil {
+							wd.checker = NewTimeChecker(time.Second * 5)
+						}
+						m.warnAlarm(fmt.Sprintf("worker %v timeout", name))
+					}
 				}
 				return true
 			})

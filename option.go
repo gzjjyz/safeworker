@@ -37,3 +37,9 @@ func WithAfterLoop(cb func()) Option {
 		worker.afterLoop = cb
 	}
 }
+
+func WithWarnAlarm(cb func(errMsg string)) Option {
+	return func(worker *Worker) {
+		worker.warnAlarm = cb
+	}
+}
