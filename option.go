@@ -43,3 +43,9 @@ func WithWarnAlarm(cb func(errMsg string)) Option {
 		worker.warnAlarm = cb
 	}
 }
+
+func WithSkipAlarm() Option {
+	return func(d *Worker) {
+		d.skipAlarm = true
+	}
+}

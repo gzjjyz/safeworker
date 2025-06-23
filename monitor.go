@@ -18,9 +18,10 @@ var (
 
 type description struct {
 	counter      uint32
-	timeOutCb    func()
+	timeOutCb    func() string
 	checker      *TimeChecker
 	startTimeOut atomic.Int64
+	skipAlarm    bool
 }
 
 type monitor struct {
@@ -64,7 +65,7 @@ func (m *monitor) stop() {
 	close(m.exit)
 }
 
-func (m *monitor) register(workerName string, onTimeOutCb func()) error {
+func (m *monitor) register(workerName string, onTimeOutCb func() string, opts ...DescriptionOption) error {
 	if _, ok := m.workers.Load(workerName); ok {
 		return fmt.Errorf("worker %s already registered", workerName)
 	}
@@ -72,6 +73,9 @@ func (m *monitor) register(workerName string, onTimeOutCb func()) error {
 	wd := description{
 		counter:   0,
 		timeOutCb: onTimeOutCb,
+	}
+	for _, opt := range opts {
+		opt(&wd)
 	}
 
 	m.workers.Store(workerName, &wd)
@@ -87,7 +91,7 @@ func (m *monitor) report(workerName string) {
 	if work, ok := w.(*description); ok {
 		atomic.StoreUint32(&work.counter, 0)
 		if start := work.startTimeOut.Load(); start != 0 {
-			if m.successAlarm != nil {
+			if m.successAlarm != nil && !work.skipAlarm {
 				m.successAlarm(fmt.Sprintf("持续时间(秒)：%d", time.Now().Unix()-start))
 			}
 			work.startTimeOut.Store(0)
@@ -113,15 +117,15 @@ func (m *monitor) run() {
 					if wd.timeOutCb == nil {
 						return true
 					}
-					wd.timeOutCb()
-					if m.warnAlarm != nil {
+					errStr := wd.timeOutCb()
+					if m.warnAlarm != nil && !wd.skipAlarm {
 						if wd.checker != nil && !wd.checker.CheckAndSet(true) {
 							return true
 						}
 						if wd.checker == nil {
 							wd.checker = NewTimeChecker(time.Second * 5)
 						}
-						m.warnAlarm(fmt.Sprintf("worker %v timeout", name))
+						m.warnAlarm(fmt.Sprintf("worker %v timeout. msg: %s", name, errStr))
 					}
 				}
 				return true
